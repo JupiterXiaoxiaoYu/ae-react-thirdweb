@@ -1,91 +1,101 @@
-import { ConnectWallet } from "@thirdweb-dev/react";
 import styles from "../styles/Home.module.css";
 import { AE_AMOUNT_FORMATS } from '@aeternity/aepp-sdk';
 import useAeternitySDK from '../hooks/useAeternitySDK';
+import network from "../configs/network";
 import { useEffect, useRef, useState } from "react";
-import { walletDetector, BrowserWindowMessageConnection, AeSdkAepp, Node } from '@aeternity/aepp-sdk'
+
+const WalletConnectionStatus = Object.freeze({
+	Error: 0,
+	Connecting: 1,
+	Connected: 2,
+});
 
 export default function Home() {
-  const client = useAeternitySDK();
-  const address = useRef(null);
-  const balance = useRef(null);
+  const [client, clientReady] = useAeternitySDK();
+	const [address, setAddress] = useState(null);
+	const [balance, setBalance] = useState(null);
+	const [errorMsg, setErrorMsg] = useState("");
+	const [status, setStatus] = useState(WalletConnectionStatus.Connecting)
 
-	const fetchAccount = async (sdk) => {
-		// let addressFromSDK = 
-    // console.log(addressFromSDK)
-    address.current = sdk.address
-    // console.log(typeof(sdk.address))
-    balance.current = await sdk.getBalance('ak_293sRou862Dj8LpndbsU4aP815S6v6AhNsZJ2TSgqKLhuaWnYp')
-    console.log(balance.current)
+  let aeSdk = useRef(null);
 
-    // balance.value = await state.aeSdk.getBalance(state.aeSdk.address, {
-    //   format: AE_AMOUNT_FORMATS.AE,
-    // })
-		// let balance = await sdk.baladdressFromSDKance(current, {
-		// 	format: AE_AMOUNT_FORMATS.AE
-		// });
-
-		// console.log("Current Address:", address);
-		// console.log("Current Balance:", balance + AmountFormatter.AE_AMOUNT_FORMATS.AE);	
+  const handleNetworkChange = async function (walletNetworkId) {
+    if (!aeSdk) return;
+		if (status !== WalletConnectionStatus.Error && walletNetworkId !== network.id) {
+			setErrorMsg(`Network "${walletNetworkId}" is not supported. Please switch to "${network.id}" in your wallet.`)
+			setStatus(WalletConnectionStatus.Error);
+      setAddress(null);
+			setBalance(null);
+		} else {
+      if(status !== WalletConnectionStatus.Connected) {
+        setStatus(WalletConnectionStatus.Connected);
+      }
+      updateAccountInfo();
+		}
 	}
 
-  if (client) fetchAccount(client);
+  const handleAddressChange = async function () {
+    // TODO: not working as expected
+    // if (status === WalletConnectionStatus.Connected) {
+    //   updateAccountInfo();
+    // } else {
+    //   console.log("Not connected, ignoring address change. Please connect to your wallet to the correct network.")
+    // }
+    updateAccountInfo();
+  }
 
+  const updateAccountInfo = async function () {
+    const _address = await aeSdk.address;
+    const _balance = await aeSdk.getBalance(_address, {
+      format: AE_AMOUNT_FORMATS.AE
+    });
+    setAddress(_address);
+    setBalance(_balance);
+  }
 
+	useEffect(() => {
+		if (clientReady && client) {
+			aeSdk = client.current.aeSdk;
+
+      if (!aeSdk) return;
+      aeSdk.onAddressChange = (accounts) => handleAddressChange();
+			aeSdk.onNetworkChange = (params) => handleNetworkChange(params.networkId);
+			handleNetworkChange(client.current.walletNetworkId);
+		}
+	}, [clientReady, client]);
 
   return (
     <div className={styles.container}>
         <header className="App-header">
         <p>
-					{
-						client
-						? address.current
-						: "Account not connected"
+					{status === WalletConnectionStatus.Connected &&
+            `${address} (Balance: ${balance} AE)`
 					}
 				</p>
       </header>
       <main className={styles.main}>
-        <h1 className={styles.title}>
-          Welcome to <a href="https://thirdweb.com/">thirdweb</a>!
-        </h1>
-
-        <p className={styles.description}>
-          Get started by configuring your desired network in{" "}
-          <code className={styles.code}>pages/_app.js</code>, then modify the{" "}
-          <code className={styles.code}>pages/index.js</code> file!
-        </p>
-
-        <div className={styles.connect}>
-          <ConnectWallet />
-        </div>
-
-        <div className={styles.grid}>
-          <a href="https://portal.thirdweb.com/" className={styles.card}>
-            <h2>Portal &rarr;</h2>
-            <p>
-              Guides, references and resources that will help you build with
-              thirdweb.
-            </p>
-          </a>
-
-          <a href="https://thirdweb.com/dashboard" className={styles.card}>
-            <h2>Dashboard &rarr;</h2>
-            <p>
-              Deploy, configure and manage your smart contracts from the
-              dashboard.
-            </p>
-          </a>
-
-          <a
-            href="https://portal.thirdweb.com/templates"
-            className={styles.card}
-          >
-            <h2>Templates &rarr;</h2>
-            <p>
-              Discover and clone template projects showcasing thirdweb features.
-            </p>
-          </a>
-        </div>
+        <div>
+					{status === WalletConnectionStatus.Connecting &&
+						<div>
+							<h2>Searching for Wallet ...</h2>
+						</div>
+					}
+				</div>
+				<div>
+					{status === WalletConnectionStatus.Error &&
+						<div>
+							<h2>{errorMsg}</h2>
+						</div>
+					}
+				</div>
+				<div>
+					{status === WalletConnectionStatus.Connected &&
+						<div>
+							<h2>Account address: {address}</h2>
+							<h2>Balance: {balance}</h2>
+						</div>
+					}
+				</div>
       </main>
     </div>
   );
