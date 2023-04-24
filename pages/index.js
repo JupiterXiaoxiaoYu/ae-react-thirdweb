@@ -15,8 +15,8 @@ export default function Home() {
     // console.log(addressFromSDK)
     address.current = sdk.address
     // console.log(typeof(sdk.address))
-    // balance.current = await sdk.getBalance('ak_293sRou862Dj8LpndbsU4aP815S6v6AhNsZJ2TSgqKLhuaWnYp')
-    // console.log(balance.current)
+    balance.current = await sdk.getBalance('ak_293sRou862Dj8LpndbsU4aP815S6v6AhNsZJ2TSgqKLhuaWnYp')
+    console.log(balance.current)
 
     // balance.value = await state.aeSdk.getBalance(state.aeSdk.address, {
     //   format: AE_AMOUNT_FORMATS.AE,
