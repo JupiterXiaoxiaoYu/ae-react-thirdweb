@@ -1,10 +1,10 @@
 import {
 	useRef,
 	useState,
-	useEffect
+	useEffect,
 } from 'react';
 
-import { aeternitySDK } from "../utils/aeternity";
+import { initSDK } from "../utils/aeternity";
 
 /**
  * æternitySDK Hook 
@@ -12,24 +12,28 @@ import { aeternitySDK } from "../utils/aeternity";
  * @returns {Object} æpp client
  */
 const useAeternitySDK = () => {
-	let sdk = useRef();
-	const [client, clientReady] = useState(null);
+	const client = useRef(null);
+
+	const [connecting, setConnecting] = useState(false);
+	const [clientReady, setClientReady] = useState(false);
+	const [clientError, setClientError] = useState(null);
 
 	useEffect(() => {
 		(async () => {
-			console.log('sdk')
-			try {
-				sdk.current = await aeternitySDK();
-
-				clientReady(sdk.current);
-			} catch (err) {
-				console.error("Error fetching aeternitySDK", err);
-				clientReady(false)
-			}
+				setClientError(null);
+				setConnecting(true);
+				try {
+					client.current = await initSDK();
+					setClientReady(true);
+				} catch (err) {
+					setClientError(err);
+					setClientReady(false);
+				} finally {
+					setConnecting(false);
+				}
 		})();
-  }, [sdk]);
-
-	return client;
+  }, []);
+	return [client, clientReady, connecting, clientError];
 }
 
 export default useAeternitySDK;
